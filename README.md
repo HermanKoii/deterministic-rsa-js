@@ -1,83 +1,97 @@
-**WARNING! This project has not yet been verified to be cryptographically secure. USE AT YOUR OWN RISK!** 
-
 # deterministic-rsa-js
-Deterministic RSA using vanilla JavaScript
 
-Can be used to generate RSA keys based on mnemonic keys. This functionality is already possible using the [node-forge](https://www.npmjs.com/package/node-forge) package however, this project is ~3 times faster making it more suitable for high performance applications or real-time interactive environments.
+**WARNING! This project has not yet been verified to be cryptographically secure. USE AT YOUR OWN RISK!**
 
-Available on [npm](https://www.npmjs.com/package/deterministic-rsa-js)
+## Project Overview
 
-## How it works
+`deterministic-rsa-js` is a high-performance JavaScript library for generating deterministic RSA keys using native BigInt and advanced optimization techniques. Unlike traditional RSA key generation libraries, this implementation offers:
 
-### Native BigInt, no byte array shims
+- 🚀 **Blazing Fast Performance**: Approximately 3x faster than existing solutions
+- 🔬 **Deterministic Key Generation**: Generate reproducible RSA keys from a seed
+- 💻 **Native JavaScript**: Leverages native BigInt for efficient large integer operations
+- 🧵 **Multithreaded Prime Generation**: Parallel prime generation with 50% speedup
+- 🔒 **JSON Web Key (JWK) Compatible**: Outputs keys in standard JWK format
 
-The original version of this project used Rust which took ~1.3s to generate a key natively, however when compiled to WASM, it took ~15 seconds. This is a because the WASM implementation used Uint8Array as a shim for large integers which is very slow in JavaScript. In the current implementation, we use JS native BigInts which handles arbitrarily-precise integers at a native level. This is where most of the speed up comes from.
+### Key Features
+- Generate RSA keys of configurable bit lengths
+- Seeded key generation for reproducibility
+- Optimized random number generation
+- Miller-Rabin primality testing
+- Multithreaded prime generation
 
-### Multithreading
+## Installation
 
-Using [workerpool](https://www.npmjs.com/package/workerpool), we are able to deterministically generate primes in parallel. This results in a 50% speedup on average.
+Install the library using npm:
 
-### Fast random number generation
+```bash
+npm install deterministic-rsa-js
+```
 
-Use simple 32bit math and bitwise operators. Instead of generating entirely new numbers, simply pick a random bit between `1` and `nBits - 3` then `^= 1n << bitShift` it (lbitshift xor assign). This reduces how many times we need to run the number generation.
+### Prerequisites
+- Node.js version 14.x or higher
+- Native support for BigInt
 
-### Optimized memory behavior
+## API Reference
 
-Preallocate buffers and variables to reduce garbage collection. We also take care to only compare and assign values of the same type in order remove the performance cost of type coercion and dynamic memory allocation.
+### `rsaGenKeys(bits, seed[, e])`
 
-## Testing
+Generates deterministic RSA key pairs.
 
-To test, run `node test`
+#### Parameters
+- `bits` (number): Total modulus bit length (must be multiple of 32, minimum 192)
+- `seed` (Uint8Array): 32-byte seed for reproducible key generation
+- `e` (BigInt, optional): Public exponent, defaults to 65537n
 
-## TODO
+#### Returns
+A Promise resolving to an object with `privateKey` and `publicKey` (JWK format)
 
-- Add optimized prime checking implementation
-    - In a typical [prime generation algorithm](https://en.wikipedia.org/wiki/Generation_of_primes#Large_primes), prime checking dominates the runtime at more than 90%. This is because large numbers are inherently difficult to check for [primality](https://en.wikipedia.org/wiki/Primality_test) as you would need to rule out all the factors up to the root of the number. Conventional RSA algorithms use [AKS](https://en.wikipedia.org/wiki/AKS_primality_test) for smaller numbers and multiple rounds of [Miller–Rabin](https://en.wikipedia.org/wiki/Miller%E2%80%93Rabin_primality_test) for larger numbers. Though Miller-Rabin is adequate, we could improve on the process by using [QFT](https://en.wikipedia.org/wiki/Quadratic_Frobenius_test), [Baillie-PSW](https://en.wikipedia.org/wiki/Baillie%E2%80%93PSW_primality_test), ECM, or SIQS. ECM and SIQS is implemented at [Alpertron integer factorization calculator](https://www.alpertron.com.ar/ECM.HTM).
-- Add native Node crypto
-    - When running, we should check if the node crypto module is available. If it is, we use [`crypto.checkPrime()`](https://nodejs.org/api/crypto.html#crypto_crypto_checkprime_candidate_options_callback) to leverage the native C++ prime checking. Otherwise, we fallback to our JavaScript solution.
-- Alternative PRNG
-    - Using [different PRNG](https://stackoverflow.com/questions/521295) and bit chunking methods may result in a performance increase, though it can vary wildly depending on the browser or runtime environment.
+#### Example
+```javascript
+const { rsaGenKeys } = require('deterministic-rsa-js');
 
-## Resources
+// Generate a 2048-bit RSA key pair
+const seed = crypto.getRandomValues(new Uint8Array(32));
+const keyPair = await rsaGenKeys(2048, seed);
 
-- https://nodejs.org/api/crypto.html#crypto_crypto_checkprime_candidate_options_callback
-- https://github.com/openssl/openssl/blob/master/apps/rsa.c
-- https://github.com/jnyryan/rsa-encryption
-- https://github.com/Anirban166/RSA-Cryptosystem
-- https://github.com/bugaosuni59/RSA-homework
-- https://github.com/CPerezz/rust-rsa
-- https://github.com/suciluz/multithreaded-rsa-encryption
-- https://github.com/digitalbazaar/forge/blob/master/lib/rsa.js#L595-L643
-- https://github.com/digitalbazaar/forge/blob/master/lib/rsa.js#L710-L734
-- https://github.com/digitalbazaar/forge/blob/master/lib/rsa.js#L1149
-- https://github.com/digitalbazaar/forge/blob/master/lib/prime.worker.js#L58-L130
-- https://github.com/ipfs-shipyard/js-human-crypto-keys/blob/master/src/keys/rsa.js#L14-L36
-- https://github.com/rzcoder/node-rsa/blob/master/src/libs/rsa.js#L93
-- https://gist.github.com/krzkaczor/0bdba0ee9555659ae5fe
-- https://webassembly.github.io/JS-BigInt-integration/js-api/index.html
-- https://webassembly.github.io/spec/js-api/
-- https://stackoverflow.com/a/27736785/5623318
-- https://stackoverflow.com/questions/521295
-- https://stackoverflow.com/questions/5989429
-- https://en.wikipedia.org/wiki/Hensel%27s_lemma
-- https://en.wikipedia.org/wiki/Miller%E2%80%93Rabin_primality_test
-- https://en.wikipedia.org/wiki/Fermat_primality_test
-- https://en.wikipedia.org/wiki/Chinese_remainder_theorem
-- https://en.wikipedia.org/wiki/Modular_exponentiation
-- https://en.wikipedia.org/wiki/Frobenius_pseudoprime
-- http://en.wikipedia.org/wiki/Montgomery_reduction#Modular_exponentiation
-- https://link.springer.com/content/pdf/10.1007/3-540-48071-4_26.pdf
-- https://link.springer.com/article/10.1007/s00145-006-0332-x
-- https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-4.pdf#page=62
-- https://www.di.ens.fr/~fouque/pub/prime.pdf
-- https://arxiv.org/pdf/1503.04955.pdf
-- https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/
-- https://v8.dev/features/wasm-bigint
-- https://math.stackexchange.com/a/3839960/925321
-- https://docs.rs/num-bigint-dig/0.7.0/num_bigint_dig/trait.RandPrime.html
-- http://www-cs-students.stanford.edu/~tjw/jsbn/
-- https://www.alpertron.com.ar/ECM.HTM
-- https://coolaj86.com/articles/bigints-and-base64-in-javascript/
-- https://datatracker.ietf.org/doc/html/rfc7517#appendix-A.2
-- https://tools.ietf.org/id/draft-jones-json-web-key-01.html#rfc.section.5
-- https://self-issued.info/docs/draft-jones-jose-json-private-and-symmetric-key-00.html
+console.log(keyPair.publicKey);
+console.log(keyPair.privateKey);
+```
+
+## Repository Structure
+
+- `index.js`: Main library implementation
+- `test.js`: Library test suite
+- `package.json`: Project configuration and dependencies
+- `LICENSE`: MIT license file
+
+## Contributing
+
+Contributions are welcome! To contribute:
+
+1. Fork the repository
+2. Create a new branch for your feature
+3. Implement your changes
+4. Write or update tests
+5. Run tests with `node test`
+6. Submit a pull request
+
+### Testing
+
+To run tests:
+```bash
+node test
+```
+
+## Future Roadmap
+
+- [ ] Optimized prime checking implementation
+- [ ] Native Node.js crypto integration
+- [ ] Alternative Pseudo-Random Number Generator (PRNG)
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+## Disclaimer
+
+**WARNING!** This library has not been fully verified for cryptographic security. Use at your own risk and consult security experts for critical applications.
